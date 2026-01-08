@@ -1,0 +1,20 @@
+# Segredos do Streamlit (CRÍTICO)
+.streamlit/secrets.toml
+
+# Pastas de ambiente virtual
+venv/
+env/
+.venv/
+
+# Arquivos temporários do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Outros arquivos de sistema
+.DS_Store
+<<<<<<< HEAD
+Thumbs.db
+=======
+Thumbs.db
+>>>>>>> ed1c65c17676a2973f739b829bb3747df4440ba8
