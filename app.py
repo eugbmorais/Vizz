@@ -7,7 +7,6 @@ import plotly.express as px
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from huggingface_hub import InferenceClient
-import pyrebase
 
 # ---------------- CONFIG ----------------
 st.set_page_config(
@@ -40,101 +39,6 @@ with col2:
         use_container_width='auto' # Faz o logo preencher a coluna central
     )
 
-# --- INICIALIZAÇÃO DO FIREBASE (CORRIGIDA E OTIMIZADA) ---
-# Armazena a conexão no st.session_state para evitar reinicializações
-
-if 'firebase_app' not in st.session_state:
-    try:
-        if hasattr(st, "secrets") and "firebase_credentials" in st.secrets:
-            firebase_config = st.secrets["firebase_credentials"]
-            st.session_state.firebase_app = pyrebase.initialize_app(firebase_config)
-            st.session_state.FIREBASE_OK = True
-        else:
-            st.error("Credenciais do Firebase ('firebase_credentials') não encontradas.")
-            st.session_state.FIREBASE_OK = False
-    except Exception as e:
-        st.error(f"Erro ao inicializar o Firebase: {e}")
-        st.session_state.FIREBASE_OK = False
-
-# Define as variáveis auth e db para o script usar
-if st.session_state.get("FIREBASE_OK", False):
-    firebase_app = st.session_state.firebase_app
-    auth = firebase_app.auth()
-    db = firebase_app.database()
-    FIREBASE_OK = True
-else:
-    FIREBASE_OK = False
-
-# --- BLOCO DE AUTENTICAÇÃO ---
-if FIREBASE_OK:
-    if "logged_in" not in st.session_state: st.session_state.logged_in = False
-    if "register_screen" not in st.session_state: st.session_state.register_screen = False
-    if "forgot_password_screen" not in st.session_state: st.session_state.forgot_password_screen = False
-
-    if not st.session_state.get("logged_in", False):
-        if st.session_state.register_screen:
-            st.sidebar.header("📝 Registrar Novo Usuário")
-            new_email = st.sidebar.text_input("Email", key="reg_email")
-            new_password = st.sidebar.text_input("Senha (mínimo 6 caracteres)", type="password", key="reg_pass")
-            if st.sidebar.button("Registrar", use_container_width=True, type="primary"):
-                try:
-                    auth.create_user_with_email_and_password(new_email, new_password)
-                    st.sidebar.success("Usuário registrado! Volte e faça o login.")
-                    st.session_state.register_screen = False; st.rerun()
-                except Exception as e:
-                    try:
-                        error_message = json.loads(e.args[1])['error']['message']
-                        if error_message == "EMAIL_EXISTS": st.sidebar.error("Este email já está registrado.")
-                        elif "WEAK_PASSWORD" in error_message: st.sidebar.error("A senha deve ter pelo menos 6 caracteres.")
-                        else: st.sidebar.error("Formato de email inválido.")
-                    except: st.sidebar.error("Ocorreu um erro desconhecido.")
-            if st.sidebar.button("Voltar para Login", use_container_width=True):
-                st.session_state.register_screen = False; st.rerun()
-
-        elif st.session_state.forgot_password_screen:
-            st.sidebar.header("🔑 Recuperar Senha")
-            forgot_email = st.sidebar.text_input("Digite seu email de cadastro", key="forgot_email")
-            if st.sidebar.button("Enviar link de recuperação", use_container_width=True, type="primary"):
-                try:
-                    auth.send_password_reset_email(forgot_email)
-                    st.sidebar.success("Link de recuperação enviado! Verifique seu email.")
-                    st.session_state.forgot_password_screen = False; st.rerun()
-                except Exception:
-                    st.sidebar.error("Não foi possível enviar o email.")
-            if st.sidebar.button("Voltar para Login", use_container_width=True):
-                st.session_state.forgot_password_screen = False; st.rerun()
-        else:
-            with st.sidebar.form(key='login_form'):
-                st.header("🔐 Login")
-                email = st.text_input("Email")
-                password = st.text_input("Senha", type="password")
-                login_button = st.form_submit_button("Entrar", use_container_width=True, type="primary")
-                if login_button:
-                    try:
-                        user = auth.sign_in_with_email_and_password(email, password)
-                        st.session_state.logged_in = True
-                        st.session_state.user_info = user
-                        st.rerun()
-                    except Exception:
-                        st.error("Email ou senha incorretos.")
-            if st.sidebar.button("Esqueci minha senha", use_container_width=True):
-                st.session_state.forgot_password_screen = True; st.rerun()
-            st.sidebar.markdown("---")
-            if st.sidebar.button("Não tem uma conta? Registre-se", use_container_width=True):
-                st.session_state.register_screen = True; st.rerun()
-
-if not st.session_state.get("logged_in", False):
-    st.info("Faça login ou registre-se na barra lateral para usar o Vizz.")
-    st.stop()
-else:
-    email = st.session_state["user_info"]['email']
-    user_id = st.session_state["user_info"]['localId']
-    with st.sidebar.expander("✅ Logado", expanded=True):
-        st.success(f"Logado como:\n{email}")
-        if st.button("Sair", use_container_width=True):
-            st.session_state.logged_in = False
-            st.session_state.user_info = None
-            st.rerun()
 # ---------------- HELP (ONBOARDING) ----------------
 with st.expander("ℹ️ Como usar o Vizz – Guia rápido", expanded=False):
     st.markdown("""
